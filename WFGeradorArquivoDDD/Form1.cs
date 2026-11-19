@@ -16,8 +16,6 @@ namespace WFGeradorArquivoDDD
     public partial class Form1 : Form
     {
 
-        public List<String> ListClasses { get; set; }
-
         public Form1()
         {
             InitializeComponent();
@@ -26,258 +24,59 @@ namespace WFGeradorArquivoDDD
 
         private void button1_Click(object sender, EventArgs e)
         {
-            if (ListaClassesTXT.Text.Trim().ToString().Length > 0)
+            IList<string> entidades;
+            try
             {
-                ListClasses = ListaClassesTXT.Text.Split(';').ToList();
-                try
+                entidades = GeradorClasses.ParseEntidades(ListaClassesTXT.Text);
+            }
+            catch (ArgumentException exception)
+            {
+                MessageBox.Show(exception.Message, "Alerta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (entidades.Count == 0)
+            {
+                MessageBox.Show("Digite os nomes das classes", "Alerta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                var arquivos = new GeradorClasses().Gerar(CarregarArquivo());
+
+                progressBar1.Minimum = 0;
+                progressBar1.Maximum = arquivos.Count;
+                progressBar1.Value = 0;
+                progressBar1.Step = 1;
+
+                foreach (var arquivo in arquivos)
                 {
-                    progressBar1.Value = 0;
-                    progressBar1.Minimum = 0;
-                    progressBar1.Maximum = (ListClasses.Count*6);
-                    progressBar1.Step = 1;
-                    this.GerarClasses();
-                    MessageBox.Show("Classes Gerada Com Sucesso", "Sucesso!", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
+                    StatusLabel1.Text = String.Format("Gerando {0} ...", Path.GetFileName(arquivo.Caminho));
+                    GerarArquivo(arquivo.Caminho, arquivo.Conteudo);
+                    progressBar1.PerformStep();
+                    StatusLabel2.Text = String.Format("{0}%", progressBar1.Value * 100 / progressBar1.Maximum);
+                    statusStrip1.Refresh();
                 }
-                catch (Exception exception)
-                {
-                    MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-                
+
+                MessageBox.Show(String.Format("{0} arquivo(s) gerado(s) com sucesso.", arquivos.Count),
+                    "Sucesso!", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
             }
-            else
+            catch (Exception exception)
             {
-                MessageBox.Show("Digite Nome de classes","Alerta",MessageBoxButtons.OK,MessageBoxIcon.Warning);
+                MessageBox.Show(exception.Message, "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            
-            //progressBar1.Increment(100);
-
         }
 
-        private void GerarClasses()
+        private static void GerarArquivo(string fileName, string conteudo)
         {
-            var incress = 1;
-            var max = (ListClasses.Count * 6);
-
-         
-            foreach (var item in ListClasses)
+            var diretorio = Path.GetDirectoryName(fileName);
+            if (!String.IsNullOrEmpty(diretorio) && !Directory.Exists(diretorio))
             {
-                StatusLabel1.Text = String.Format("Gerando Classe I{0}{1} ...", item, this.SufixoRepository.Text);
-                StatusLabel2.Text = String.Format("{0}%", (progressBar1.Value*100)/max);
-                statusStrip1.Refresh();
-                
-                this.GerarIRepository(item);
-              //  progressBar1.Increment(incress);
-                progressBar1.PerformStep();
-                Task.Delay(1000);
-
-
-
-                StatusLabel1.Text = String.Format("Gerando Classe {0}{1} ...", item, this.SufixoRepository.Text);
-                StatusLabel2.Text = String.Format("{0}%", (progressBar1.Value * 100) / max);
-                statusStrip1.Refresh();
-                this.GerarRepository(item);
-                //progressBar1.Increment(incress);
-                progressBar1.PerformStep();
-                Task.Delay(1000);
-
-
-                StatusLabel1.Text = String.Format("Gerando Classe I{0}{1} ...", item, this.SufixoApplicaion.Text);
-                StatusLabel2.Text = String.Format("{0}%", (progressBar1.Value * 100) / max);
-                statusStrip1.Refresh();
-                this.GerarIApplication(item);
-               // progressBar1.Increment(incress);
-                progressBar1.PerformStep();
-                Task.Delay(1000);
-
-
-                StatusLabel1.Text = String.Format("Gerando Classe {0}{1} ...", item, this.SufixoApplicaion.Text);
-                StatusLabel2.Text = String.Format("{0}%", (progressBar1.Value * 100) / max);
-                statusStrip1.Refresh();
-                this.GerarApplication(item);
-                //progressBar1.Increment(incress);
-                progressBar1.PerformStep();
-                Task.Delay(1000);
-
-
-                StatusLabel1.Text = String.Format("Gerando Classe I{0}{1} ...", item, this.SufixoService.Text);
-                StatusLabel2.Text = String.Format("{0}%", (progressBar1.Value * 100) / max);
-                statusStrip1.Refresh();
-                this.GerarIService(item);
-                //progressBar1.Increment(incress);
-                progressBar1.PerformStep();
-                Task.Delay(1000);
-
-
-                StatusLabel1.Text = String.Format("Gerando Classe I{0}{1} ...", item, this.SufixoService.Text);
-                StatusLabel2.Text = String.Format("{0}%", (progressBar1.Value * 100) / max);
-                statusStrip1.Refresh();
-                this.GerarService(item);
-               // progressBar1.Increment(incress);
-                progressBar1.PerformStep();
-                Task.Delay(1000);
-
-
-                StatusLabel2.Text = String.Format("{0}%", (progressBar1.Value * 100) / max);
-                statusStrip1.Refresh();
-            }
-        }
-
-
-        #region  GerarRepository
-
-        private void GerarIRepository(String nomeClasse)
-        {
-            var conteudo = new StringBuilder();
-
-            conteudo.AppendLine(String.Format("using {0};                              ",this.UsingEntites.Text));
-            conteudo.AppendLine("                                                                     ");
-            conteudo.AppendLine(String.Format("namespace {0}            ",this.UsingIRepository.Text));
-            conteudo.AppendLine("{                                                                    ");
-            conteudo.AppendLine(String.Format("    public interface I{0}{1} : I{1}{2}<{0}>   ", nomeClasse, this.SufixoRepository.Text,this.SufixoBase.Text));
-            conteudo.AppendLine("    {                                                                ");
-            conteudo.AppendLine("    }                                                                ");
-            conteudo.AppendLine("}                                                                    ");
-
-            GerarArquivo(String.Format(@"{0}\I{1}{2}.cs", this.CaminhoInterfaceRepositoryTxt.Text,nomeClasse,this.SufixoRepository.Text ), conteudo.ToString());
-        }
-
-        #endregion
-
-        #region  GerarRepository
-
-        private void GerarRepository(String nomeClasse)
-        {
-            var conteudo = new StringBuilder();
-
-
-            conteudo.AppendLine(String.Format("using {0};                                          ",this.UsingEntites.Text));
-            conteudo.AppendLine(String.Format("using {0};                           ",this.UsingIRepository.Text));
-            conteudo.AppendLine("                                                                                 ");
-            conteudo.AppendLine(String.Format("namespace {0}                               ",this.UsingRepository.Text));
-            conteudo.AppendLine("{                                                                                ");
-            conteudo.AppendLine(String.Format("   public class {0}{1} : {1}{2}<{0}>, I{0}{1}  ",nomeClasse, this.SufixoRepository.Text,this.SufixoBase.Text));
-            conteudo.AppendLine("    {                                                                            ");
-            conteudo.AppendLine("                                                                                 ");
-            conteudo.AppendLine("    }                                                                            ");
-            conteudo.AppendLine("}                                                                                ");
-
-
-            GerarArquivo(String.Format(@"{0}\{1}{2}.cs", this.CaminhoRepositoryTxt.Text, nomeClasse, this.SufixoRepository.Text), conteudo.ToString());
-
-        }
-
-        #endregion
-
-        #region  GerarIApplication
-
-        private void GerarIApplication(String nomeClasse)
-        {
-            var conteudo = new StringBuilder();
-
-            conteudo.AppendLine(String.Format("using {0};                                    ",this.UsingEntites.Text));
-            conteudo.AppendLine("                                                                           ");
-            conteudo.AppendLine(String.Format("namespace {0}                           ",this.UsingIApplication.Text));
-            conteudo.AppendLine("{                                                                          ");
-            conteudo.AppendLine(String.Format("    public interface I{0}{1} : I{1}{2}<{0}>         ",nomeClasse,this.SufixoApplicaion.Text,this.SufixoBase.Text));
-            conteudo.AppendLine("    {                                                                      ");
-            conteudo.AppendLine("    }                                                                      ");
-            conteudo.AppendLine("}                                                                          ");
-
-            GerarArquivo(String.Format(@"{0}\I{1}{2}.cs", this.CaminhoInterfaceApplicationtxt.Text, nomeClasse, this.SufixoApplicaion.Text), conteudo.ToString());
-
-        }
-        #endregion
-
-        #region  GerarApplication
-        private void GerarApplication(String nomeClasse)
-        {
-            var conteudo = new StringBuilder();
-            var nomeVariavel = String.Format("{0}{1}", nomeClasse.Substring(0, 1).ToLower(), nomeClasse.Substring(1));
-            conteudo.AppendLine(String.Format("using {0};                                            ",this.UsingIApplication.Text));
-            conteudo.AppendLine(String.Format("using {0};                                                  ",this.UsingEntites.Text));
-            conteudo.AppendLine(String.Format("using {0};                                       ",this.UsingIService.Text));
-            conteudo.AppendLine("                                                                                         ");
-            conteudo.AppendLine("                                                                                         ");
-            conteudo.AppendLine(String.Format("namespace {0}                                                   ",this.UsingApplication.Text));
-            conteudo.AppendLine("{                                                                                        ");
-            conteudo.AppendLine(String.Format("    public class {0}{1} : {1}{2}<{0}>, I{0}{1}         ",nomeClasse,this.SufixoApplicaion.Text, this.SufixoBase.Text));
-            conteudo.AppendLine("    {                                                                                    ");
-            conteudo.AppendLine(String.Format("        private readonly I{0}{1} _{2}{1};                                ",nomeClasse,this.SufixoService.Text,nomeVariavel));
-            conteudo.AppendLine("                                                                                         ");
-            conteudo.AppendLine(String.Format("        public {0}{1}(I{0}{2} {3}{2})                         ",nomeClasse, this.SufixoApplicaion.Text,this.SufixoService.Text,nomeVariavel));
-            conteudo.AppendLine(String.Format("            :base({0}{1})                                                        ", nomeVariavel, this.SufixoService.Text));
-            conteudo.AppendLine("        {                                                                                ");
-            conteudo.AppendLine(String.Format("            _{0}{1} = {0}{1};                                            ", nomeVariavel, this.SufixoService.Text));
-            conteudo.AppendLine("        }                                                                                ");
-            conteudo.AppendLine("    }                                                                                    ");
-            conteudo.AppendLine("}                                                                                        ");
-
-            GerarArquivo(String.Format(@"{0}\{1}{2}.cs", this.CaminhoApplicationTxt.Text, nomeClasse, this.SufixoApplicaion.Text), conteudo.ToString());
-
-        }
-
-        #endregion
-
-        #region GerarIService
-        private void GerarIService(String nomeClasse)
-        {
-            var conteudo = new StringBuilder();
-
-            conteudo.AppendLine(String.Format("using {0};                             ",this.UsingEntites.Text));
-            conteudo.AppendLine(("                                                                    "));
-            conteudo.AppendLine(String.Format("namespace {0}               ",this.UsingIService.Text));
-            conteudo.AppendLine(("{                                                                   "));
-            conteudo.AppendLine(String.Format("    public interface I{0}{1} : I{1}{2}<{0}>        ",nomeClasse,this.SufixoService.Text,this.SufixoBase.Text));
-            conteudo.AppendLine(("    {                                                               "));
-            conteudo.AppendLine(("    }                                                               "));
-            conteudo.AppendLine(("}                                                                   "));
-            
-            GerarArquivo(String.Format(@"{0}\I{1}{2}.cs", this.CaminhoIterfaceServiceTxt.Text, nomeClasse, this.SufixoService.Text), conteudo.ToString());
-
-        }
-        #endregion
-
-        #region GerarService
-        private void GerarService(String nomeClasse)
-        {
-            var conteudo = new StringBuilder();
-            var nomeVariavel = String.Format("{0}{1}", nomeClasse.Substring(0, 1).ToLower(), nomeClasse.Substring(1));
-            conteudo.AppendLine(String.Format("using {0};                                            ", this.UsingEntites.Text));
-            conteudo.AppendLine(String.Format("using {0};                             ",this.UsingIRepository.Text));
-            conteudo.AppendLine(String.Format("using {0};                                 ",this.UsingIService.Text));
-            conteudo.AppendLine("                                                                                   ");
-            conteudo.AppendLine(String.Format("namespace {0}                                         ",this.UsingService.Text));
-            conteudo.AppendLine("{                                                                                  ");
-            conteudo.AppendLine(String.Format("    public class {0}{1} : {1}{2}<{0}>, I{0}{1}            ",nomeClasse,this.SufixoService.Text,this.SufixoBase.Text));
-            conteudo.AppendLine("    {                                                                              ");             
-            conteudo.AppendLine(String.Format("        private readonly I{0}{1} _{2}{1};                    ",nomeClasse,this.SufixoRepository.Text, nomeVariavel));
-            conteudo.AppendLine("                                                                                   ");
-            conteudo.AppendLine(String.Format("        public {0}{3}(I{0}{1} {2}{1})                ",nomeClasse,this.SufixoRepository.Text,nomeVariavel,this.SufixoService.Text));
-            conteudo.AppendLine(String.Format("            : base({0}{1})                                              ",nomeVariavel,this.SufixoRepository.Text));
-            conteudo.AppendLine("        {                                                                          ");
-            conteudo.AppendLine(String.Format("            _{0}{1} = {0}{1};                                ",nomeVariavel,this.SufixoRepository.Text));
-            conteudo.AppendLine("        }                                                                          ");
-            conteudo.AppendLine("                                                                                   ");
-            conteudo.AppendLine("    }                                                                              ");
-            conteudo.AppendLine("}                                                                                  ");
-
-            GerarArquivo(String.Format(@"{0}\{1}{2}.cs", this.CaminhoServiceTxt.Text, nomeClasse, this.SufixoService.Text), conteudo.ToString());
-
-        }
-        #endregion
-
-        private static void GerarArquivo(string fileName, string Conteudo)
-        {
-
-            if (!Directory.Exists(Path.GetDirectoryName(fileName)))
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(fileName));
+                Directory.CreateDirectory(diretorio);
             }
 
-            StreamWriter l_SrLog = new StreamWriter(fileName,false, Encoding.UTF8);
-            l_SrLog.WriteLine(Conteudo);
-            l_SrLog.Flush();
-            l_SrLog.Close();
+            File.WriteAllText(fileName, conteudo, new UTF8Encoding(true));
         }
 
         private void button2_Click(object sender, EventArgs e)
@@ -304,7 +103,10 @@ namespace WFGeradorArquivoDDD
 
             var conteudoXml = Global.Instance.Serializar(arquivoSave);
 
-            if (!txtCaminhoArquivo.Text.ToLower().EndsWith(".xml")) txtCaminhoArquivo.Text += @"\Configuracao.xml";
+            if (!txtCaminhoArquivo.Text.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+            {
+                txtCaminhoArquivo.Text = Path.Combine(txtCaminhoArquivo.Text, "Configuracao.xml");
+            }
 
             GerarArquivo(txtCaminhoArquivo.Text, conteudoXml);
 
@@ -348,7 +150,18 @@ namespace WFGeradorArquivoDDD
 
         private void CarregarArquivoXml()
         {
+            if (!File.Exists(txtCaminhoArquivo.Text))
+            {
+                MessageBox.Show("Arquivo de configuração não encontrado.", "Alerta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             var ArquivoSave = GetArquivoXML(txtCaminhoArquivo.Text);
+            if (ArquivoSave == null)
+            {
+                MessageBox.Show("O arquivo selecionado não é uma configuração válida.", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
 
             this.CaminhoInterfaceApplicationtxt.Text = ArquivoSave.DirInterfaceApplication;
             this.CaminhoInterfaceRepositoryTxt.Text = ArquivoSave.DirInterfaceRepository;
@@ -376,14 +189,8 @@ namespace WFGeradorArquivoDDD
         private Configuracao GetArquivoXML(string fileName)
         {
 
-            StreamReader sr = new StreamReader(fileName);
-            var conteudoxml = sr.ReadToEnd();
-
-            var Config = Global.Instance.FromXml<Configuracao>(conteudoxml);
-
-            sr.Close();
-
-            return Config;
+            var conteudoxml = File.ReadAllText(fileName);
+            return Global.Instance.FromXml<Configuracao>(conteudoxml);
         }
     }
 }

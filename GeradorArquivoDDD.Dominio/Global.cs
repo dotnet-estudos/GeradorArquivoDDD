@@ -79,7 +79,7 @@ namespace GeradorArquivoDDD.Dominio
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
             }
 
@@ -99,7 +99,7 @@ namespace GeradorArquivoDDD.Dominio
                 l_SrLog.Flush();
                 l_SrLog.Close();
             }
-            catch (Exception e)
+            catch (Exception)
             {
             }
         }
